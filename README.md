@@ -17,7 +17,10 @@ A lightweight module for tracking R package installations in project-specific en
 ### Quick Setup
 
 ```r
-# If you already have trackr.R sourced
+# First source the r_tools/track.R module
+source("r_tools/track.R")
+
+# Then proceed with the project setup
 trackr$setup_project()
 ```
 
@@ -30,7 +33,7 @@ This interactive setup will:
 ### Manual Setup
 
 1. Create `r_tools/` directory in your project root
-2. Place `trackr.R` in `r_tools/`
+2. Place `track.R` in `r_tools/`
 3. Add `.Rprofile` to project root to auto-load on startup
 
 The module will automatically install `jsonlite` to your project library if not available.
@@ -144,7 +147,7 @@ project/
 ├── .r_install_history.txt          # Installation log (human-readable)
 ├── R_libs/                         # Project-local packages
 ├── r_tools/
-│   └── trackr.R           # This module
+│   └── track.R                     # This module
 └── install_r_packages.R            # Generated script
 ```
 
