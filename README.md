@@ -17,7 +17,7 @@ A lightweight module for tracking R package installations in project-specific en
 ### Quick Setup
 
 ```r
-# First source the r_tools/track.R module
+# First source the trackR module
 source("r_tools/track.R")
 
 # Then proceed with the project setup
