@@ -1813,12 +1813,14 @@ trackr$compare_with_singularity <- function(def_file = "Singularity.def") {
 #' 
 #' @param lock_file Path to renv.lock file
 #' @param output_file Output R script path
+#' @param pin_versions If TRUE, install exact versions from lock file; if FALSE, install latest versions (default: FALSE)
 #' @param include_bioconductor Include Bioconductor packages
 #' @param include_github Include GitHub packages
 #' @export
 trackr$generate_script_from_renv_lock <- function(
     lock_file = "renv.lock",
     output_file = "install_from_renv.R",
+    pin_versions = FALSE,
     include_bioconductor = TRUE,
     include_github = TRUE
 ) {
@@ -1909,6 +1911,7 @@ trackr$generate_script_from_renv_lock <- function(
     paste("#", "Source lock file:", lock_file),
     paste("#", "R version (from lock):", r_version),
     if (!is.null(bioc_version)) paste("#", "Bioconductor version:", bioc_version) else NULL,
+    paste("#", "Version pinning:", if (pin_versions) "exact versions" else "latest versions"),
     paste("#", "Total packages:", length(cran_packages) + length(bioc_packages) + length(github_packages)),
     "",
     "# Set library path",
@@ -1917,6 +1920,7 @@ trackr$generate_script_from_renv_lock <- function(
     ".libPaths(c(lib_path, .libPaths()))",
     "",
     "cat('Installing packages from renv.lock...\\n')",
+    if (pin_versions) "cat('Using exact versions from lock file\\n')" else "cat('Using latest available versions\\n')",
     ""
   )
   
@@ -1929,21 +1933,36 @@ trackr$generate_script_from_renv_lock <- function(
       ""
     )
     
-    for (pkg_name in sort(names(cran_packages))) {
-      pkg <- cran_packages[[pkg_name]]
-      version <- if (!is.null(pkg$Version)) pkg$Version else NULL
-      
-      if (!is.null(version)) {
+    if (pin_versions) {
+      # Install exact versions using remotes::install_version
+      for (pkg_name in sort(names(cran_packages))) {
+        pkg <- cran_packages[[pkg_name]]
+        version <- if (!is.null(pkg$Version)) pkg$Version else NULL
+        
+        if (!is.null(version)) {
+          script_lines <- c(
+            script_lines,
+            sprintf('# %s (%s)', pkg_name, version),
+            sprintf('remotes::install_version("%s", version = "%s", lib = lib_path)', 
+                    pkg_name, version)
+          )
+        } else {
+          script_lines <- c(
+            script_lines,
+            sprintf('# %s (no version info)', pkg_name),
+            sprintf('install.packages("%s", lib = lib_path)', pkg_name)
+          )
+        }
+      }
+    } else {
+      # Install latest versions using install.packages
+      for (pkg_name in sort(names(cran_packages))) {
+        pkg <- cran_packages[[pkg_name]]
+        version <- if (!is.null(pkg$Version)) pkg$Version else NULL
+        
         script_lines <- c(
           script_lines,
-          sprintf('# %s (%s)', pkg_name, version),
-          sprintf('remotes::install_version("%s", version = "%s", lib = lib_path)', 
-                  pkg_name, version)
-        )
-      } else {
-        script_lines <- c(
-          script_lines,
-          sprintf('# %s', pkg_name),
+          sprintf('# %s%s', pkg_name, if (!is.null(version)) paste0(" (lock had ", version, ")") else ""),
           sprintf('install.packages("%s", lib = lib_path)', pkg_name)
         )
       }
@@ -1979,12 +1998,21 @@ trackr$generate_script_from_renv_lock <- function(
       pkg <- bioc_packages[[pkg_name]]
       version <- if (!is.null(pkg$Version)) pkg$Version else NULL
       
-      script_lines <- c(
-        script_lines,
-        sprintf('# %s%s', pkg_name, if (!is.null(version)) paste0(" (", version, ")") else ""),
-        sprintf('BiocManager::install("%s", lib = lib_path, update = FALSE, ask = FALSE)', 
-                pkg_name)
-      )
+      if (pin_versions && !is.null(version)) {
+        script_lines <- c(
+          script_lines,
+          sprintf('# %s (%s)', pkg_name, version),
+          sprintf('BiocManager::install("%s", lib = lib_path, update = FALSE, ask = FALSE)', 
+                  pkg_name)
+        )
+      } else {
+        script_lines <- c(
+          script_lines,
+          sprintf('# %s%s', pkg_name, if (!is.null(version) && !pin_versions) paste0(" (lock had ", version, ")") else ""),
+          sprintf('BiocManager::install("%s", lib = lib_path, update = FALSE, ask = FALSE)', 
+                  pkg_name)
+        )
+      }
     }
     script_lines <- c(script_lines, "")
   }
@@ -2055,8 +2083,9 @@ trackr$generate_script_from_renv_lock <- function(
     writeLines(script_lines, output_file)
     Sys.chmod(output_file, mode = "0755")
     
-    message(sprintf("\n✓ Installation script saved: %s", output_file))
+    message(sprintf("\n ✓ Installation script saved: %s", output_file))
     message(sprintf("   R version (from lock): %s", r_version))
+    message(sprintf("   Version pinning: %s", if (pin_versions) "exact versions" else "latest versions"))
     if (!is.null(bioc_version)) {
       message(sprintf("   Bioconductor version: %s", bioc_version))
     }

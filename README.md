@@ -121,27 +121,39 @@ Command types:
 Convert an renv.lock file to a trackR-compatible installation script:
 
 ```r
-# Generate from renv.lock
+# Generate from renv.lock (latest versions)
 trackr$generate_script_from_renv_lock()
+
+# Install exact versions from lock file
+trackr$generate_script_from_renv_lock(
+  lock_file = "renv.lock",
+  pin_versions = TRUE
+)
 
 # With custom options
 trackr$generate_script_from_renv_lock(
   lock_file = "renv.lock",
   output_file = "install_from_renv.R",
+  pin_versions = FALSE,  # FALSE = latest versions (default), TRUE = exact versions
   include_bioconductor = TRUE,
   include_github = TRUE
 )
 
 # Exclude GitHub packages (CRAN + Bioconductor only)
 trackr$generate_script_from_renv_lock(
-  include_github = FALSE
+  include_github = FALSE,
+  pin_versions = TRUE
 )
 ```
+
+Version pinning options:
+- **pin_versions = FALSE** (default): Install latest available versions of packages (recommended for updates)
+- **pin_versions = TRUE**: Install exact versions from lock file using `remotes::install_version()` (recommended for exact reproducibility)
 
 This function:
 - Parses renv.lock JSON format
 - Extracts package versions and sources
-- Generates version-pinned installation commands
+- Generates installation commands (version-pinned or latest)
 - Preserves GitHub commit SHAs for reproducibility
 - Sets Bioconductor version if specified
 
